@@ -1,0 +1,247 @@
+<html>
+    <head>
+        <script>
+"use strict";
+
+var gFile,
+    gData,
+    gCAT_TRK_SEC,
+    gCAT_TRK,
+    gCAT_SEC,
+    gContext,
+    MAX_SIZE = 143360;
+
+const 
+    FILE_TYPE_TEXT      = 0x00,
+    FILE_TYPE_INTEGER   = 0x01,
+    FILE_TYPE_APPLESOFT = 0x02,
+    FILE_TYPE_BINARY    = 0x04,
+    FILE_TYPE_S         = 0x08,
+    FILE_TYPE_RELOC     = 0x10,
+    FILE_TYPE_C         = 0x20,
+    FILE_TYPE_D         = 0x40,
+    FILE_TYPES = [ 'T', 'I', 'A', 'B', 'S', 'R', 'C', 'D' ];
+
+console.log( "Loading..." );
+
+// --- Utility ---
+
+    // Optional: width
+    // Optional: character to pad left with, such as '0'; will default to space
+    function padLeft( text, width, c )
+    {
+        if( !width ) return "";
+        if( !c ) c = ' ';
+        return ("" + new Array( width ).join( c ) + text).slice( -width );
+    }
+
+    function makeUnsigned( n )
+    {
+        return ((n + 256) & 0xFF)|0;
+    }
+
+    // @param FILE_TYPE_*
+    function makeFileType( fileType )
+    {
+        var type = 0, raw = fileType;
+        
+        while (raw > 0)
+        {
+            type++;
+            raw >>= 1;
+        }
+        
+        return FILE_TYPES[ type ];
+    }
+
+    function parseName( catalogEntry )
+    {
+        var name = '', c, MAX_FILENAME = 30;
+        
+        for( var i = 0; i < MAX_FILENAME; i++ )
+        {
+            //   0x00: FTOC Track
+            //   0x01: FTOC Sector
+            //   0x02: Type
+            //   0x03: Filename
+            c = makeUnsigned( catalogEntry[ 0x3 + i ] ) & 0x7F;
+            name += String.fromCharCode( c );
+        }
+
+        name = name.trim();
+        return name;
+    }
+
+    function parseInt16( low, high )
+    {
+        var n  = makeUnsigned( low )
+            n += makeUnsigned( high ) * 256;
+        return n;
+    }
+
+    function readTrackSectorBytes( track, sector, offset, length )
+    {
+        if (track  > 34) alert( "Track > 34" );
+        if (sector > 16) alert( "Sector > 16" );
+        if (offset >256) alert( "Offset > 256" );
+
+        if( gData )
+        {
+            var begin  = track*16*256 + 256*sector + offset,
+                end    = begin + length,
+                buffer = gData.slice( begin, end );
+            return new Int8Array( buffer );
+        }
+        return null;
+    }
+
+    function readCatalogEntry( i )
+    {
+        var MAX_ENTRY_LENGTH = 0x23,
+            MAX_ENTRIES_PER_SECTOR = 7;
+
+        // Catalog $11,C .. $11,1
+        if( !gCAT_TRK || !gCAT_SEC )
+            return null;
+
+        // Search directory entries
+        var div6 = (i / MAX_ENTRIES_PER_SECTOR)|0,
+            mod6 = (i % MAX_ENTRIES_PER_SECTOR)  ,
+            offset = MAX_ENTRY_LENGTH*mod6 + 0xB,
+            sector = gCAT_SEC - div6;
+
+        if (sector < 1)
+            return null;
+
+        //   0x00: FTOC Track
+        //   0x01: FTOC Sector
+        //   0x02: Type
+        //   0x03: Filename
+        //   0x21: Length Low
+        //   0x22: Length Hi
+        var raw = gCAT_TRK_SEC = readTrackSectorBytes( gCAT_TRK, sector, offset, 35 ),
+            entry = {},
+            type = makeUnsigned( raw[0x02] );
+            
+            entry.track  = parseInt    ( raw[0x00] );
+            entry.sector = parseInt    ( raw[0x01] );
+            entry.locked = (type >= 128)|0;
+            entry.type   = makeFileType( type & 0x7F );
+            entry.name   = parseName   ( raw );
+            entry.length = parseInt16  ( raw[0x21], raw[0x22] );
+        return entry;
+    }
+
+// --- Implementation ---
+
+/*
+    Version 1
+    
+        ---------------------------------------
+        *A 00006 ^HELLO
+        *I 00002 APPLESOFT
+        *B 00034 PIX
+        *B 00034 PICEX
+        *B 00065 SEKTOR
+        *B 00047 ^VOCAB
+        *B 00006 ^CHARSET
+         B 00064 CASTLE
+         B 00064 BACKUP
+        *T 00007 ^TEXT
+        *B 00020 @INIT
+        *B 00024 @WOLF
+        *B 00024 ^THINGS
+        ---------------------------------------
+        Total Files: 13, Sectors Used: 397
+*/
+
+function catalog()
+{
+    var entry, i = 0, LOCKED = [ ' ', '*' ], entries = [], text = (new Array( 40 ).join('-')) + '\n', totalSize = 0;
+
+    do
+    {
+        entry = readCatalogEntry( i++ );
+        if( entry && entry.track )
+        {
+            text += LOCKED[ entry.locked ] + entry.type + ' ' + padLeft( entry.length, 5, '0' ) + ' ' + entry.name + '\n';
+            totalSize += entry.length;
+            entries.push( entry );
+        }
+    } while( entry !== null )
+
+    text += (new Array( 40 ).join('-')) + '\n';
+    text += 'Total Files: ' + entries.length + ', Sectors Used: ' + totalSize;
+console.log( text );
+    return entries;
+}
+
+function readFile( name )
+{
+}
+
+function main()
+{
+    console.log( " Done" );
+
+    if (window.File && window.FileList && window.FileReader)
+    {
+        document.getElementById('id_select_dsk').addEventListener('change', onSelectFile, false);
+    }
+
+    var canvas  = document.getElementById( "canvas" );
+    gContext = canvas.getContext( "2d" );
+
+//    gContext.drawImage( image, x, y );
+}
+
+// ProgressEvent
+// .target = FileReader
+// .target.result;
+function onLoadFile( e )
+{
+    if (e.loaded == MAX_SIZE) // .dsk is < 144K
+    {
+        gFile = e.target;
+        gData = e.target.result;
+
+        // Read VTOC to find CATALOG
+        gCAT_TRK_SEC = readTrackSectorBytes( 0x11, 0x00, 1, 2 );
+
+        gCAT_TRK = gCAT_TRK_SEC[0]; // $11
+        gCAT_SEC = gCAT_TRK_SEC[1]; // $0C
+
+        catalog();
+    }
+}
+
+function onSelectFile( e )
+{
+    var iFile, tFile, aFile = e.target.files, nFile = aFile.length, reader;
+
+    e.stopPropagation();
+    e.preventDefault();
+
+    for( iFile = 0; iFile < nFile; iFile++ )
+    {
+        tFile = aFile[ iFile ];
+        
+        if( tFile.size > MAX_SIZE )
+        {
+            alert( ".dsk images must be <= " + MAX_SIZE );
+            break;
+        }
+        reader = new FileReader();
+        reader.onload = onLoadFile;
+        reader.readAsArrayBuffer( tFile );
+    }
+}
+        </script>
+    </head>
+<body onload='main();'>
+
+<input type="file" id='id_select_dsk' style='width:100%'>
+<br>
+<canvas id='canvas' width='560px' height='460px'>
+</body>
+</html>
