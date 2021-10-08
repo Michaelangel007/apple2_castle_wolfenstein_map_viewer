@@ -13,6 +13,7 @@ var gFile,
 
 const
     MAX_DISK_SIZE       = 143360,
+    MAX_FILENAME        =     30,
     FILE_TYPE_TEXT      = 0x00,
     FILE_TYPE_INTEGER   = 0x01,
     FILE_TYPE_APPLESOFT = 0x02,
@@ -34,6 +35,11 @@ console.log( "Loading..." );
         if( !width ) return "";
         if( !c ) c = ' ';
         return ("" + new Array( width ).join( c ) + text).slice( -width );
+    }
+
+    function makeHex4$( n )
+    {
+        return padLeft(n.toString(16).toUpperCase(), 4, '0' );
     }
 
     function makeUnsigned( n )
@@ -64,7 +70,7 @@ console.log( "Loading..." );
 
     function parseName( catalogEntry )
     {
-        var name = '', c, MAX_FILENAME = 30;
+        var name = '', c;
 
         for( var i = 0; i < MAX_FILENAME; i++ )
         {
@@ -204,24 +210,29 @@ console.log( "Loading..." );
 
     function readCatalog()
     {
-        var entry, i = 0, LOCKED = [ ' ', '*' ], entries = [], text = (new Array( 40 ).join('-')) + '\n', totalSize = 0, start, length;
+        var entry, i = 0, LOCKED = [ ' ', '*' ], entries = [], text = (new Array( 40 ).join('-')) + '\n', totalSize = 0, address, length, temp;
 
         do
         {
             entry = readCatalogEntry( i++ );
             if( entry && entry.track )
             {
-                text += LOCKED[ entry.locked ] + entry.type + ' ' + padLeft( entry.length, 5, '0' ) + ' ' + padLeft( entry.name, 30 );
+                text += LOCKED[ entry.locked ] + entry.type + ' ' + padLeft( entry.length, 5, '0' ) + ' ' + entry.name + (Array( MAX_FILENAME - entry.name.length).join(' '));
 
-                var temp;
+                address = 0,
+                length  = 0;
+
                 switch( entry.file_type )
                 {
-                    case FILE_TYPE_APPLESOFT: start = 0x0801; length = 0; break;
-                    case FILE_TYPE_BINARY   : temp = readBinaryAddressLength( entry.track, entry.sector ); start = temp.address; length = temp.size; break;
+                    case FILE_TYPE_APPLESOFT: address = 0x0801; length = 0; break;
+                    case FILE_TYPE_INTEGER  : address = 0x0801; length = 0; break;
+                    case FILE_TYPE_BINARY   : temp = readBinaryAddressLength( entry.track, entry.sector ); address = temp.address; length = temp.size; break;
                     default: break;
                 }
-
+                text += ',A$' + makeHex4$( address );
+                text += ',L$' + makeHex4$( length  );
                 text += '\n';
+
                 totalSize += entry.length;
                 entries.push( entry );
             }
