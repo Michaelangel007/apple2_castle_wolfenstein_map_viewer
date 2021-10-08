@@ -5,13 +5,14 @@
 
 var gFile,
     gData,
-    gCAT_TRK_SEC,
+    gCatalog,
     gCAT_TRK,
     gCAT_SEC,
     gContext,
-    MAX_SIZE = 143360;
+    gFont;
 
-const 
+const
+    MAX_DISK_SIZE       = 143360,
     FILE_TYPE_TEXT      = 0x00,
     FILE_TYPE_INTEGER   = 0x01,
     FILE_TYPE_APPLESOFT = 0x02,
@@ -20,7 +21,7 @@ const
     FILE_TYPE_RELOC     = 0x10,
     FILE_TYPE_C         = 0x20,
     FILE_TYPE_D         = 0x40,
-    FILE_TYPES = [ 'T', 'I', 'A', 'B', 'S', 'R', 'C', 'D' ];
+    FILE_TYPES          = [ 'T', 'I', 'A', 'B', 'S', 'R', 'C', 'D' ];
 
 console.log( "Loading..." );
 
@@ -44,20 +45,27 @@ console.log( "Loading..." );
     function makeFileType( fileType )
     {
         var type = 0, raw = fileType;
-        
+
         while (raw > 0)
         {
             type++;
             raw >>= 1;
         }
-        
+
         return FILE_TYPES[ type ];
+    }
+
+    function parseInt16( low, high )
+    {
+        var n  = makeUnsigned( low )
+            n += makeUnsigned( high ) * 256;
+        return n;
     }
 
     function parseName( catalogEntry )
     {
         var name = '', c, MAX_FILENAME = 30;
-        
+
         for( var i = 0; i < MAX_FILENAME; i++ )
         {
             //   0x00: FTOC Track
@@ -72,18 +80,17 @@ console.log( "Loading..." );
         return name;
     }
 
-    function parseInt16( low, high )
-    {
-        var n  = makeUnsigned( low )
-            n += makeUnsigned( high ) * 256;
-        return n;
-    }
+// --- Disk Utility ---
 
     function readTrackSectorBytes( track, sector, offset, length )
     {
+        if (offset === undefined) offset =   0; // read entir sector
+        if (length === undefined) length = 256; // if not specified
+
         if (track  > 34) alert( "Track > 34" );
         if (sector > 16) alert( "Sector > 16" );
         if (offset >256) alert( "Offset > 256" );
+        if (length > MAX_DISK_SIZE) alert( "Size > " + MAX_DISK_SIZE );
 
         if( gData )
         {
@@ -95,9 +102,52 @@ console.log( "Loading..." );
         return null;
     }
 
+// --- DOS3.3 Meta Utility ---
+
+    // @return array of blocks
+    function readFTOC( track, sector )
+    {
+        var ftoc     = [],
+            next_trk = track,
+            next_sec = sector,
+            i, trk, sec, raw, block;
+
+        do
+        {
+            raw      = readTrackSectorBytes( next_trk, next_sec, 0x00, 0x100 );
+            next_trk = raw[ 0x01 ]; // next FTOC track
+            next_sec = raw[ 0x02 ]; // next FTOC sector
+
+            for( i = 0x0C; i < 0x100; i += 2 )
+            {
+                trk   = raw[ i+0 ];
+                sec   = raw[ i+1 ];
+
+                if( !trk )
+                    break;
+
+                block = trk*16 + sec;
+                ftoc.push( block );
+            }
+        } while (next_trk > 0);
+
+        return ftoc;
+    }
+
+    function readVTOC()
+    {
+        var VTOC_TRK = 0x11,
+            vTOC_SEC = 0x00,
+            TRK_SEC;
+
+        TRK_SEC = readTrackSectorBytes( VTOC_TRK, vTOC_SEC, 1, 2 );
+        gCAT_TRK = TRK_SEC[0]; // $11
+        gCAT_SEC = TRK_SEC[1]; // $0C
+    }
+
     function readCatalogEntry( i )
     {
-        var MAX_ENTRY_LENGTH = 0x23,
+        var MAX_ENTRY_LENGTH       = 0x23,
             MAX_ENTRIES_PER_SECTOR = 7;
 
         // Catalog $11,C .. $11,1
@@ -119,24 +169,126 @@ console.log( "Loading..." );
         //   0x03: Filename
         //   0x21: Length Low
         //   0x22: Length Hi
-        var raw = gCAT_TRK_SEC = readTrackSectorBytes( gCAT_TRK, sector, offset, 35 ),
+        var raw = readTrackSectorBytes( gCAT_TRK, sector, offset, 35 ),
             entry = {},
             type = makeUnsigned( raw[0x02] );
-            
-            entry.track  = parseInt    ( raw[0x00] );
-            entry.sector = parseInt    ( raw[0x01] );
-            entry.locked = (type >= 128)|0;
-            entry.type   = makeFileType( type & 0x7F );
-            entry.name   = parseName   ( raw );
-            entry.length = parseInt16  ( raw[0x21], raw[0x22] );
+
+            entry.track     = parseInt    ( raw[0x00] );
+            entry.sector    = parseInt    ( raw[0x01] );
+            entry.locked    = (type >= 128)|0;
+            entry.file_type =               type & 0x7f;
+            entry.type      = makeFileType( type & 0x7F );
+            entry.name      = parseName   ( raw );
+            entry.length    = parseInt16  ( raw[0x21], raw[0x22] );
         return entry;
+    }
+
+// --- DOS 3.3 File Utility ---
+
+    function readBinaryAddressLength( track, sector )
+    {
+        var ftoc    = readFTOC( track, sector );
+        var data    = readBlock( ftoc[0] );
+        var address = parseInt16( data[0], data[1] );
+        var size    = parseInt16( data[2], data[3] );
+
+        return { address: address, size: size };
+    }
+
+    function readBlock( block )
+    {
+        var trk = (block / 16)|0,
+            sec = (block % 16)|0;
+        return readTrackSectorBytes( trk, sec );
+    }
+
+    function readCatalog()
+    {
+        var entry, i = 0, LOCKED = [ ' ', '*' ], entries = [], text = (new Array( 40 ).join('-')) + '\n', totalSize = 0, start, length;
+
+        do
+        {
+            entry = readCatalogEntry( i++ );
+            if( entry && entry.track )
+            {
+                text += LOCKED[ entry.locked ] + entry.type + ' ' + padLeft( entry.length, 5, '0' ) + ' ' + padLeft( entry.name, 30 );
+
+                var temp;
+                switch( entry.file_type )
+                {
+                    case FILE_TYPE_APPLESOFT: start = 0x0801; length = 0; break;
+                    case FILE_TYPE_BINARY   : temp = readBinaryAddressLength( entry.track, entry.sector ); start = temp.address; length = temp.size; break;
+                    default: break;
+                }
+
+                text += '\n';
+                totalSize += entry.length;
+                entries.push( entry );
+            }
+        } while (entry !== null)
+
+        text += (new Array( 40 ).join('-')) + '\n';
+        text += 'Total Files: ' + entries.length + ', Sectors Used: ' + totalSize;
+console.log( text );
+
+        gCatalog = entries;
+        return entries;
+    }
+
+    function readFile( name )
+    {
+        var i, file, result = {}, data = null, ftoc;
+
+        if( !gCatalog )
+            return null;
+
+        for( i = 0; i < gCatalog.length; i++ )
+        {
+            file = gCatalog[i];
+            if (name === file.name)
+                break;
+            else
+               file = null;
+        }
+
+        if( file )
+        {
+            ftoc = readFTOC( file.track, file.sector );
+            data = readFileData( ftoc, file );
+        }
+
+        return data;
+    }
+
+    // isBinary if 4 byte prefix should be stripped
+    function readFileData( ftoc, file )
+    {
+        var iBlock, sector, nBlocks = ftoc.length, data = new Array( nBlocks * 256 ), offset, temp;
+
+        for( iBlock = 0; iBlock < nBlocks; iBlock++ )
+        {
+            sector = readBlock( ftoc[ iBlock ] );
+            offset = iBlock*256;
+            for( var b = 0; b < 256; b++ )
+                data[ offset + b ] = sector[ b ];
+        }
+
+        var address = 0, length = data.length;
+
+        if (file.file_type === FILE_TYPE_BINARY)
+        {
+            address = parseInt16( data[0], data[1] );
+            length  = parseInt16( data[2], data[3] );
+            data    = data.slice( 4, 4 + length );
+        }
+
+        return { data: data, address: address, length: length };
     }
 
 // --- Implementation ---
 
 /*
     Version 1
-    
         ---------------------------------------
         *A 00006 ^HELLO
         *I 00002 APPLESOFT
@@ -153,33 +305,36 @@ console.log( "Loading..." );
         *B 00024 ^THINGS
         ---------------------------------------
         Total Files: 13, Sectors Used: 397
+
+    Version 1
+        ^HELLO   , A$0801, L44 (L$002C)
+        APPLESOFT, A$0801, L39 (L$0027)
+        PIX      , A$2000, L$2000
+        PICEX    , A$2000, L$2000
+        SEKTOR   , A$4004, L$3FF0
+        ^VOCAB   , A$17DA, L$2D63
+        ^CHARSET , A$4400, L$0400
+        CASTLE   , A$4004, L$3DFC
+        BACKUP   , A$4004, L$3DFC
+        ^TEXT    , A$0000, L$????
+        @INIT    , A$0880, L$12BE
+        @WOLF    , A$0810, L$16EB
+        ^THINGS  , A$4800, L$1638
+
+    Version 2:
+        ^TEXT    , A$0000, L$???? <-- (shorter: 5 sectors vs 7 sectors)
+        PICEX    , A$2000, L$2000
+        PIX      , A$2000, L$2000
+        SEKTOR   , A$4004, L$3FF0
+        ^VOCAB   , A$17DA, L$2D63
+        ^CHARSET , A$4400, L$0400
+        CASTLE   , A$4004, L$3DFC
+        BACKUP   , A$4004, L$3DFC
+        @INIT    , A$0880, L$1432 <-- LONGER : $1432 vs $12BE
+        @WOLF    , A$0810, L$161C <-- SHORTER: $161C vs $16EB
+        ^THINGS  , A$4800, L$1638 <-- SHORTER: $1638 vs $16EB
+        ^RAM     , A$0810, L$0167 <-- NEW
 */
-
-function catalog()
-{
-    var entry, i = 0, LOCKED = [ ' ', '*' ], entries = [], text = (new Array( 40 ).join('-')) + '\n', totalSize = 0;
-
-    do
-    {
-        entry = readCatalogEntry( i++ );
-        if( entry && entry.track )
-        {
-            text += LOCKED[ entry.locked ] + entry.type + ' ' + padLeft( entry.length, 5, '0' ) + ' ' + entry.name + '\n';
-            totalSize += entry.length;
-            entries.push( entry );
-        }
-    } while( entry !== null )
-
-    text += (new Array( 40 ).join('-')) + '\n';
-    text += 'Total Files: ' + entries.length + ', Sectors Used: ' + totalSize;
-console.log( text );
-    return entries;
-}
-
-function readFile( name )
-{
-}
-
 function main()
 {
     console.log( " Done" );
@@ -189,8 +344,8 @@ function main()
         document.getElementById('id_select_dsk').addEventListener('change', onSelectFile, false);
     }
 
-    var canvas  = document.getElementById( "canvas" );
-    gContext = canvas.getContext( "2d" );
+    var canvas = document.getElementById( "canvas" );
+    gContext   = canvas.getContext( "2d" );
 
 //    gContext.drawImage( image, x, y );
 }
@@ -200,18 +355,15 @@ function main()
 // .target.result;
 function onLoadFile( e )
 {
-    if (e.loaded == MAX_SIZE) // .dsk is < 144K
+    if (e.loaded == MAX_DISK_SIZE) // .dsk is < 144K
     {
         gFile = e.target;
         gData = e.target.result;
 
         // Read VTOC to find CATALOG
-        gCAT_TRK_SEC = readTrackSectorBytes( 0x11, 0x00, 1, 2 );
-
-        gCAT_TRK = gCAT_TRK_SEC[0]; // $11
-        gCAT_SEC = gCAT_TRK_SEC[1]; // $0C
-
-        catalog();
+        readVTOC();
+        readCatalog();
+        gFont = readFile( '^CHARSET' );
     }
 }
 
@@ -225,10 +377,10 @@ function onSelectFile( e )
     for( iFile = 0; iFile < nFile; iFile++ )
     {
         tFile = aFile[ iFile ];
-        
-        if( tFile.size > MAX_SIZE )
+
+        if( tFile.size > MAX_DISK_SIZE )
         {
-            alert( ".dsk images must be <= " + MAX_SIZE );
+            alert( ".dsk images must be <= " + MAX_DISK_SIZE );
             break;
         }
         reader = new FileReader();
