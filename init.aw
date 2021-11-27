@@ -54,16 +54,17 @@
 
 echo "=== Castle Wolfenstein ==="
 // Disk   "Castle Wolfenstein (4am crack).dsk"
-// File   @INIT
+// BLOAD  "@INIT"
 // Start  $0880  // AA72:80 08
 // Length $12BE  // AA60:BE 12
 // End    $1B3D
 
-// Prefix
-//   z  Zero Page
-//   g  Global
-//   _  Function 
-//   B  Bytes not named yet
+// Prefix for names
+//   z  Zero Page variables
+//   g  Global variables (not on page zero)
+//   _  Function (not named yet)
+//   B  Bytes (not named yet)
+//   T  Text string
 
 // Vars Zero-Page
     DB zRTSLo          10
@@ -221,7 +222,19 @@ ASC 11A0:11AF // "PRESS THE SPACE BAR.",00
 ASC 11B0:11BF
 ASC 11C0:11C8
 
-ASC 12A4:12A8 // "LEFT",00
+    ASC 1201:120F // "TURN YOUR JOYSTICK 90 DEGREES (ONE",8D,8D
+    ASC 1210:121F // "QUARTER TURN), PRESS THE SPACE BAR",8D,8D
+    ASC 1220:122F // "AND TRY AGAIN.",00
+    ASC 1230:123F //
+    ASC 1240:124F //
+    ASC 1250:1257 //
+
+    ASC 127C:127F // "ADJUSTMENT DONE!",00
+    ASC 1280:128C
+
+    ASC 129A:129F // "RIGHT",00
+
+    ASC 12A4:12A8 // "LEFT",00
 
 ASC 1803:180F // "WRITING DISK FILE - DO NOT RESET",00
 ASC 1810:181F
@@ -364,13 +377,17 @@ SYM DOS.RESET  = 9DBF // Pronto-DOS
     SYM UseJoy        = 19E1 // XREF @0A89
 
 // Unknown functions
+
     SYM __0977__ = 0977 // ???
+    SYM __0C2E__ = 0C2E // ???
     SYM __0C61__ = 0C61 // ???
     SYM __0CB2__ = 0CB2 // ???
+    SYM __0CBC__ = 0CBC // ???
     SYM __0CC1__ = 0CC1 // ???
     SYM __0DEB__ = 0DEB // ???
     SYM __0E5C__ = 0E5C // ???
-
+    SYM __100D__ = 100D // ???
+    SYM __1269__ = 1269 // ???
     SYM __13A2__ = 13A2 // ???
     SYM __13AA__ = 13AA // ???
     SYM __13CB__ = 13CB // ???
@@ -393,6 +410,7 @@ SYM DOS.RESET  = 9DBF // Pronto-DOS
     SYM __185D__ = 185D // ??? XREF @ none
     SYM __1864__ = 1864 // ???
     SYM __18A0__ = 18A0 // ??? XREF @ $0955, inline 2 bytes
+    SYM __196F__ = 196F // ???
     SYM __1976__ = 1976 // ???
     SYM __19AD__ = 19AD // ???
 
