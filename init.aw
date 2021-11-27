@@ -1,4 +1,6 @@
 // AppleWin Debugger Script
+// by Michaelangel007
+// for Castle Wolfenstein
 
 // Hide all zero page variables
     SYMMAIN  OFF
@@ -148,7 +150,9 @@ ASC  C1B:C2A
 ASC  C36:C45
 ASC  C46:C4C
 ASC  C6C:C76
-ASC  CA1:CAE
+
+    ASC  CA1:CA4 // "   ",00 ; SPC(3)
+
 ASC  CE1:CF0
 ASC  CF1:D00
 ASC  D01:D10
@@ -277,10 +281,10 @@ ASC 1850:1851
 
     DB  gRank E5D // $10 = Private
 
-    DW  EF4
-    DW 1010
-    DW 1096
-    DW 1173
+    DW  EF4 // VHTAB 05 00
+    DW 1010 // VHTAB 04 00
+    DW 1096 // VHTAB
+    DW 1173 // VHTAB
     DW 11FC // VHTAB
     DW 1277 // VHTAB
     DW 17FA // VTHAB
@@ -317,6 +321,7 @@ SYM DOS.RESET  = 9DBF // Pronto-DOS
     SYM SelectPAD     =  A7E
 
     SYM WAIT.RET      =  C4D // Wait for RETURN to be pressed
+    DB                   CBD // @CB7 STA #$3C, @CC6 DEC
     SYM NewGame       = 0CCC
 
     SYM SelectNewMap  =  DDF // Ctrl-C
@@ -386,8 +391,11 @@ SYM DOS.RESET  = 9DBF // Pronto-DOS
     SYM __0CC1__ = 0CC1 // ???
     SYM __0DEB__ = 0DEB // ???
     SYM __0E5C__ = 0E5C // ???
+    SYM __0EF1__ = 0EF1 // ???
     SYM __100D__ = 100D // ???
+    SYM __10EF__ = 10EF // ???
     SYM __1269__ = 1269 // ???
+    SYM __1293__ = 1293 // ???
     SYM __13A2__ = 13A2 // ???
     SYM __13AA__ = 13AA // ???
     SYM __13CB__ = 13CB // ???
