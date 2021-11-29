@@ -6,7 +6,8 @@
     SYMMAIN  OFF
     SYMBASIC OFF
 
-    SYMUSER  CLEAR
+    SYMASM   CLEAR // data
+    SYMUSER  CLEAR // symbols
 
 // 6502 Stack
     SYM FuncRet     = 103 // Get return low address from hardware stack
@@ -17,8 +18,8 @@
     DA xIRQ           3FE
 
 // IO usage
-    SYM IO.KEY     = C000
-    SYM IO.STROBE  = C010
+    SYM IO.KEYBOARD  = C000
+    SYM IO.KEYSTROBE = C010
 
 // Video modes
     SYM IO.GRAPHICS = C050 // TXTCLR
@@ -31,8 +32,10 @@
     SYM IO.HIRES    = C057 // HIRES
 
 // Joystick
-    SYM IO.BUTTON1 = C061
-    SYM IO.BUTTON2 = C062
+    SYM IO.STROBE  = C040 // Game I/O Strobe Output
+
+    SYM IO.BUTTON1 = C061 // Open Apple
+    SYM IO.BUTTON2 = C062 // Closed Apple
     SYM IO.BUTTON3 = C063
     SYM IO.JOY1X   = C064
     SYM IO.JOY1Y   = C065
@@ -83,13 +86,14 @@ echo "=== Castle Wolfenstein ==="
     DA ROM.Output      38 // KSWL
 
     // ROM.z
-    DB zRNDL           4B // @
-    DB zRNDH           4C
+    DW zRND            4A // @1615; Also search for LDA $C000
 
     DB GlyphOldX       60
     DB GlyphX          61
     DB GlyphY          62
     DA GlyphDst        63 // 16-bit pointer
+
+    DW pRoom           6B // @16B1 $40F0
 
     DB z_76            76 // @08F2= 76:7F
     DB z_D9            D9 // @08EC= D9:FF
@@ -375,7 +379,13 @@ SYM DOS.RESET  = 9DBF // Pronto-DOS
     SYm _ExitChar     = 1495
     DB  GlyphSaveY      1496
     DB  GlyphSaveX      1498
-    Sym LineWrap      = 149A // X Cursor > 40 chars? Yes
+    SYM LineWrap      = 149A // X Cursor > 40 chars? Yes
+
+    SYM RoomSel01     = 1591 // Select room 1, zRTSLo == Room Number
+
+    SYM random        = 1615 // ??? XREF @15BD
+    SYM WallNextPtr   = 169C // XREF @169C
+    SYM RoomNext      = 16A6 // NextRoom. Return if (pRoom>>8) == $81
 
     SYM UsePad        = 1A4D // XREF @0A7E
     SYM UseKey        = 1A9E // XREF @0A73 SelectKeys
@@ -395,7 +405,7 @@ SYM DOS.RESET  = 9DBF // Pronto-DOS
     SYM __100D__ = 100D // ???
     SYM __10EF__ = 10EF // ???
     SYM __1269__ = 1269 // ???
-    SYM __1293__ = 1293 // ???
+    SYM __1293__ = 1293 // ??? Print which hand
     SYM __13A2__ = 13A2 // ???
     SYM __13AA__ = 13AA // ???
     SYM __13CB__ = 13CB // ???
@@ -406,13 +416,21 @@ SYM DOS.RESET  = 9DBF // Pronto-DOS
     SYM __14C8__ = 14C8 // ???
     SYM __14DB__ = 14DB // ??? 
     SYM __14F0__ = 14F0 // ??? Calls ROM $FD6F
-    SYM __1591__ = 1591 // ???
     SYM __15A8__ = 15A8 // ???
     SYM __15AE__ = 15AE // ???
+    SYM __15B3__ = 15B3 // ??? XREF @15D9
+    SYM __15BD__ = 15BD // ??? XREF @15BA,15CB,15CF
+    SYM __15DC__ = 15DC // ???
+    SYM __15F3__ = 15F3 // ???
     SYM __1626__ = 1626 // ???
     SYM __16B1__ = 16B1 // ???
+    SYM __16BE__ = 16BE // ???
+    SYM __16C4__ = 16C4 // ???
     SYM __16F5__ = 16F5 // ???
+    SYM __16F9__ = 16F9 // ??? XREF @1749
     SYM __174C__ = 174C // ???
+    SYM __1769__ = 1769 // ??? XREF @177A,1786
+    SYM __17C2__ = 17C2 // ???
     SYM __17F7__ = 17F7 // ???
     SYM __182A__ = 182A // ???
     SYM __185D__ = 185D // ??? XREF @ none
@@ -424,10 +442,98 @@ SYM DOS.RESET  = 9DBF // Pronto-DOS
 
 // --- End 1B3D ---
 
-    DB 406A // ??? @ $0DEB 
-    DB 406B // ??? @ $0DF1
-    DB 406C // ??? @ $0E10
-    DB 406D // ??? @ $0DFE dec
-    DB 406F // ??? @ $0965
+    // SEKTOR
+	// 4004 + 3DFC = 4004:7DFF
+    // Map Template for all castle room layout
+
+    // 4004..40FF // General Map Config
+    // Also $4004..40FF current room
+    DB 4040 // ??? @178B
+    DB 4041 // ??? @179D STZ
+    DB 4042 // ??? @17A0 STZ
+    DB 4047 // ??? @1798 ST #0A
+    DB 4048 // ??? @17A9 STZ
+    DB 4049 // ??? @17A3 STZ
+    DB 404A // ??? @17A6 STZ
+    DB 404B // ??? @1793 STA random + #80
+    DB 404C // ??? @17AC STZ
+    DB 4051 // ??? @17AF STZ
+    DB 4052 // ??? @17B2 STZ
+    DB 406A // ??? @0DEB
+    DB 406B // ??? @0DF1
+    DB 406C // ??? @0E10
+    DB 406D // ??? @0DFE dec
+    DB 406F // ??? @0965
+
+    DB Room01 4100:4100+FF
+    DB Room02 4200:4200+FF
+    DB Room03 4300:4300+FF
+    DB Room04 4400:4400+FF
+    DB Room05 4500:4500+FF
+    DB Room06 4600:4600+FF
+    DB Room07 4700:4700+FF
+    DB Room08 4800:4800+FF
+    DB Room09 4900:4900+FF
+    DB Room10 4A00:4A00+FF
+    DB Room11 4B00:4B00+FF
+    DB Room12 4C00:4C00+FF
+    DB Room13 4D00:4D00+FF
+    DB Room14 4E00:4E00+FF
+    DB Room15 4F00:4F00+FF
+    DB Room16 5000:5000+FF
+    DB Room17 5100:5100+FF
+    DB Room18 5200:5200+FF
+    DB Room19 5300:5300+FF
+    DB Room20 5400:5400+FF
+    DB Room21 5500:5500+FF
+    DB Room22 5600:5600+FF
+    DB Room23 5700:5700+FF
+    DB Room24 5800:5800+FF
+    DB Room25 5900:5900+FF
+    DB Room26 5A00:5A00+FF
+    DB Room27 5B00:5B00+FF
+    DB Room28 5C00:5C00+FF
+    DB Room29 5D00:5D00+FF
+    DB Room30 5E00:5E00+FF
+    DB Room31 5F00:5F00+FF
+    DB Room32 6000:5000+FF
+    DB Room33 6100:5100+FF
+    DB Room34 6200:5200+FF
+    DB Room35 6300:5300+FF
+    DB Room36 6400:5400+FF
+    DB Room37 6500:5500+FF
+    DB Room38 6600:5600+FF
+    DB Room39 6700:5700+FF
+    DB Room40 6800:5800+FF
+    DB Room41 6900:5900+FF
+    DB Room42 6A00:5A00+FF
+    DB Room43 6B00:5B00+FF
+    DB Room44 6C00:5C00+FF
+    DB Room45 6D00:5D00+FF
+    DB Room46 6E00:5E00+FF
+    DB Room47 6F00:5F00+FF
+    DB Room48 7000:5000+FF
+    DB Room49 7100:5100+FF
+    DB Room50 7200:5200+FF
+    DB Room51 7300:5300+FF
+    DB Room52 7400:5400+FF
+    DB Room53 7500:5500+FF
+    DB Room54 7600:5600+FF
+    DB Room55 7700:5700+FF
+    DB Room56 7800:5800+FF
+    DB Room57 7900:5900+FF
+    DB Room58 7A00:5A00+FF
+    DB Room59 7B00:5B00+FF
+    DB Room60 7C00:5C00+FF
+    DB Room61 7D00:5D00+FF
+
+//    DB Room01W 4049 // Left
+//    DB Room01E 404A // Right
+//    DB Room01N 404B // Forward
+//    DB Room01S 404C // Backward
+//    DB Room01U 404D // Stairs
+//  DB 4080:40FF
+//  DB 4100:417F
+//
 
     DB FONT 8400:87FF
