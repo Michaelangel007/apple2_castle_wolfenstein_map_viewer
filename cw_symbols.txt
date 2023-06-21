@@ -1,0 +1,315 @@
+// --------------------------
+// --- Castle Wolfenstein ---
+// --------------------------
+// Apple Games Dissassembly Project
+// by Michael Pohoreski
+// Public Version 1
+// https://github.com/Michaelangel007/apple2_castle_wolfenstein_map_viewer
+
+// Disable Basic Assembly Symbols
+SYMBASIC OFF
+
+// Guard Data
+db GuardVest 5028
+db GuardBullets 5029
+db GuardGrenade 502A
+db GuardKeys 502B
+
+// Player Data ... also mirrored at 5877 ??
+db myBullet 4347
+db myGrenade 4348
+db myVest 434A
+db bHitWall 434C
+db bHavePlans 436C
+
+db chest 587A
+db chestitem2 5879 // Item type in chest
+db chestsec 587b // Time left on chest.
+db chestitem1 40A2 // copied to 5879
+
+// Zero Page Pointers
+dw Ptr10 10:11
+dw Ptr6B 6B:6C
+dw Ptr6D 6D:6E
+dw Ptr70 70:71
+dw Ptr72 72:73
+
+ASC 348:34C // "WOLF
+ASC 353:358 // "CASTLE"
+
+sym Escaped = 08A8
+sym PutInMap = 1159
+sym Main = 119C
+ASC 8C0:8CA // BRUN @INIT
+ASC 989:998 // "**I/O ERROR**"
+sym ClearHGR = 878
+sym _printS = AFA // bottom
+sym _printD = AAB // DOS3.3 command
+sym printK = AC7 // centered
+sym _ADE = ADE // dw next 2 bytes after JSR
+sym _0B25 = B25 // dw next 2 bytes after JSR
+sym _0B2F = B2F // dw next 2 bytes after JSR
+sym _StackBytes2 = B3B // dw next 2 bytes
+sym _0B5C = B5C // dw next 2 bytes after JSR
+sym _0B86 = B86 // dw next 2 bytes after JSR
+sym _0BA7 = BA7 // dw next 2 bytes afer JSR
+sym RowtoXY = CA3 // X = A & 7, Y = (A & 78) >> 3
+sym TileHgrY = CB1 // called from
+db ScreenLo D13
+db ScreenHi D19
+sym FUNC_0CC2 = CC2 // $6B to $4200,X
+sym GetTileDest = D12 // reset screen dst ptr; called from DrawTile .. $61=#$21, $62=#$21, $62=#$12
+sym getAY_4342 = DC4 // Y=$4342 A=$4343
+dw 4342:4343
+sym _ECB = ECB // dw next 2 bytes after JSR
+sym _EBA = EBA // dw next 2 bytes after JSR
+db WallAND F84:F8F // used at DDA
+sym _F90 = F90 // dw next 2 bytes after JSR
+sym _F9A = F9A // dw next 2 bytes after JSR
+sym Random = 898
+sym SndWall = FE8
+sym PrintChest = 5CCC
+sym ShakeScrn = 14CF // called by 11EA 11ED 11F9 11FC
+sym FUNC_112A = 112A // delay A ??
+sym FUNC_1B07 = 1B07 // unknown
+sym FUNC_1B17 = 1B17 // jump table at 1B2D .. 1B49
+sym FUNC_1B4D = 1B4D
+sym FUNC_1C72 = 1C72
+sym FUNC_1CB9 = 1CB9
+sym FUNC_1B78 = 1B78
+sym FUNC_1BE4 = 1BE4
+sym FUNC_1CD7 = 1CD7
+sym FUNC_1CF5 = 1CF5
+sym FUNC_1D0B = 1D0B
+sym OnResetEsc = 1EC7 // $3F2 init at 1187 .. or if ESCAPE pressed .. save game
+// OPEN ^TEXT
+// BLOAD SEKTOR,A$4004
+// BSAVE CASTLE,A$4004,L$3DFC
+// BSAVE BACKUP,A$4004,L$3DFC
+//$E21 Print Ranks:
+// PRIVATE
+// CORPORAL
+// SERGEANT
+// LIEUTENANT
+// CAPTAIN
+// COLONEL
+// GENERAL
+// FIELD MARSHAL
+
+sym JUMP_0EB7 = EB7
+sym RTS_0DC3 = DC3
+sym RTS_0EB9 = 0EB9
+sym RTS_1BE3 = 1BE3
+
+ASC A06:A15 // TRACK ERROR
+
+sym DrawMap = CCC // $CE6 do 0x48 = 72 tiles
+sym DrawTile = D1D // called from CD4 .. LDX #Tile
+sym Draw_0D2A = 0D2A
+ASC D47:D4B // "TTTTT" // draw map tile
+ASC D61:D66 // "TTTTT" // draw map tile
+sym isTileTop = D3A
+sym isTileBot = D4D
+sym isTileLeft = D67
+sym isTileRight = D79
+sym isTileStair = D95
+db curTile D68
+ASC D73:D77 // U<cr>U<cr>T<cr>
+ASC D8F:D93 // U<cr>U<cr>T<cr>
+ASC DAD:DAF // +++
+ASC DB7:DB9 // ***
+ASC DBE:DC1 // <cr>+++
+dw 1034:1035 // $106A
+dw 1067:1068 // $106A
+ASC 10B5:10BF // 3 spaces, <cr>, 3 spaces <cr>
+dw 10FE:10FF
+ASC 1103:1114 // "YOU WERE BLOWN UP "
+ASC 1115:1125 // "IN THE EXPLOSION!"
+dw 1176:1177 // $1D47
+dw 117D:117E // $1D2E
+dw 1182:1183 // $1D21
+dw 121A:121B // $1D2E
+dw 121F:1220 // $1D21
+dw 1268:1269 // $0016
+dw 126D:126E // $2801
+dw 12C4:12C5 // $0303
+dw 136C:136D // $0016
+dw 1371:1372 // $2801
+dw 13A6:13A7 // $0303
+dw 1475:1476 // $1D47
+dw 147A:147B // $1D21
+
+ASC 16DA:16DC // U <cr>
+dw 16EF:16F0
+ASC 16F4:16FF // "B <cr> VLZ <cr> Q <cr>T // unknown purpose
+ASC 1700:1713 // T x 20 times // unknown purpose
+dw 1718:1719
+ASC 1734:173F // "BLOAD PICEX"
+ASC 171D:1729 // YOU ESCAPED!
+dw 1749:174A // $1315
+ASC 174E:175E // WITH THE PLAN
+ASC 1835:1843 // BLOAD ^VOCAB,A$
+// 1845: Bload @ $5E38
+dw 19C1:19C2 // $1AFF
+dw 1A2C:1A2D // $1AFF
+dw 1B14:1B15 // $1AFF
+ASC 1CC4:1CCF // 456 <cr> 2L3 <cr> 789 // unknown purpose
+ASC 1CE2:1CED // 3 space <cr> 1 <cr> 3 space
+
+ASC 1D21:1D2C
+ASC 1D2E:1D39
+
+dw 1ED3:1ED4
+ASC 1ED8:1EE7 // "SAVING THE GAME" // esc pressed
+
+// Map Tiles are always 5x5 that overlap
+// 00 = Empty
+// 01 = Left Wall
+// 02 = Right Wall
+// 04 = Top Wall
+// 08 = Bottom Wall
+// 10 = Stairs
+//hgr// Locked Doors and Guards are stored elsewhere
+db map_row1 4000:4007
+db map_row2 4008:400F
+db map_row3 4010:4017
+db map_row4 4018:401F
+db map_row5 4020:4027
+db map_row6 4028:402F
+db map_row7 4030:4037
+db map_row8 4038:403F
+db map_row9 4040:4047
+
+sym FUNC_4F6A = 4F6A
+dw 4F6D:4F6E // $4C05
+dw 4F8E:4F8F // $4C05
+dw 4FE1:4FE2 // $4C05
+dw 5035:5036 // $4C05
+dw 506D:506E // $0303
+dw 5072:5073 // $4C05
+dw 5094:5095 // $4C05
+dw 50A6:50A7 // $4C05
+dw 50DB:50DC // $0303
+dw 50E9:50EA // $4C05
+ASC 510D:5110 // !"#
+dw 5118:5119 // $5022
+ASC 5138:5139 // !
+dw 5146:5147 // $5022
+dw 5161:5162 // $0016
+ASC 5166:5177 // " PUTTING ON THE "
+ASC 5178:518B // "VEST (10 SECONDS...)
+DW 51A9:51AA // $0016
+ASC 51AE:51BC // 14 spaces
+ASC 51BD:51C9 // "SEARCHING..."
+dw 51D5:51D6 // $5022
+dw 51DF:51E0 // $0016
+dw 51E4:51E5 // $2801
+dw 51F4:51F5 // $5022
+sym GuardPockets = 51F7
+dw 521B:521C // $0016
+ASC 5221:522F // YOU HAVE A "
+ASC 5230:523B // "BULLETPROOF "
+ASC 523C:5246 // "VEST."
+dw 524E:524F // $0016
+ASC 5266:5275 // " BULLETPROOF "
+ASC 5276:5287 // "VEST! (U TO USE)"
+ASC 5290:529B // 11 spaces
+ASC 52D2:52D9 // " BULLETS"
+ASC 52E6:52EA // "AND "
+ASC 52F4:52FC // "A GRENADE"
+ASC 5315:5320 // "NOTHING ELSE"
+ASC 5328:532B // "KEYS"
+ASC 5340:5346 // "NOTHING" // search guard pockets!
+ASC 534B:534C // "!"
+dw 536D:536E // $5022
+ASC 539F:53A0 // "U"
+ASC 53AB:53B0 // <cr> <cr> <cr>
+ASC 53B6:53BB // <cr>0<cr>0<cr>0
+dw 53E0:53E1 // $0016
+dw 53E5:53E6 // $2801
+dw 53EA:53EB // $0916
+ASC 53F4:53FF // "LOCKED AND NO KEY"
+ASC 5400:5408
+ASC 540E:542B // "TRYING YOUR KEYS (9 SECONDS)"
+dw 5452:5453 // $0016
+ASC 5457:5460 // 10 spaces
+ASC 5470:547E // "STILL LOCKED!"
+ASC 5486:5491 // "IT'S OPEN!"
+ASC 54BD:54CA // "IT"S CLOSED"
+dw 5518:5519 // $4C05
+dw 5525:5526 // $4C05
+
+dw 58A8:58A9 // $4915
+dw 58AE:58AF // $490D
+dw 58D5:58D6 // $5877
+ASC 5986:5990 // "234 ... 789"
+ASC 59E4:59F1 // "IT WILL TAKE "
+ASC 59FC:5A05 // " SECONDS!"
+ASC 5A38:5A41 // "(U TO USE)"
+ASC 5A95:5AA0 // IT'S EMPTY.
+dw 5AA8:5AA9
+ASC 5AAD:5AB5 // " GETTING "
+ASC 5ABD // (
+ASC 5AD0:5AD8 // "SECONDS)"
+dw 5909:590A // $5877
+dw 591F:5920 // $5877
+dw 5B10:5B11
+DB aItemTime 5B15:5B24 // Time to use item in chest
+// Chest Type 0 .. 15
+ASC 5CF0:5CF4 // "EMPTY" Contents = 0
+ASC 5CF6:5CFC // "BULLETS"
+ASC 5CFE:5D05 // "GRENADES"
+ASC 5D07:5D0E // "UNIFORMS"
+ASC 5D10:5D20 // "BULLETPROOF VESTS"
+ASC 5D22:5D27 // "MEDALS"
+ASC 5D29:5D30 // "SCHNAPPS"
+ASC 5D32:5D3A // "BRATWURST"
+ASC 5D3C:5D45 // "SAUERKRAUT" // Type = 8
+ASC 5D47:5D4D // "BULLETS"
+ASC 5D4F:5D56 // "GRENADES"
+ASC 5D58:5D5F // "UNIFORMS"
+ASC 5D61:5D71 // "BULLETPROOF VESTS" // Type=12
+ASC 5D73:5D7F // "LIEBFRAUMILCH"
+ASC 5D81:5D8B // "CANNONBALLS"
+ASC 5D8D:5D95 // "WAR PLANS" // Type = 15
+
+// "Speech" Speaker
+dw 5E36:5E37 // NextSpeech1 $6062
+dw 6062:6063 // NextSpeech2 $624B
+dw 624B:624C // NextSpeech2 $661A
+dw 661A:661B // NextSpeech3 $6B7B
+dw 6B7B:6B7C // NextSpeech4 $7027
+dw 7027:7028 // NextSpeech5 $756E
+dw 756E:756F // NextSpeech6 $7804
+dw 7804:7805 // NextSpeech7 $7B77
+dw 7B77:7B78 // NextSpeech8 $819C
+dw 819C:819D // NextSpeech9 $847A
+dw 847A:847B // NextSpeech10 $86F6
+dw 86F6:86F7 // NextSpeech11 8B9C -- none
+ASC 5E38:5E48 // ACHTUNG
+ASC 6064:6074 // HALT
+ASC 624D:625D // EEYAGH
+ASC 661C:662C // YIEEE
+ASC 6B7D:6B8D // CHWEINHUND
+ASC 7029:7039 // SS
+ASC 7570:7580 // PHOLGE
+ASC 7806:7816 // KAMERAD
+ASC 7B79:7B89 // WASISTLOS
+ASC 819E:81AE // FEUER
+ASC 847C:848C // DAPUT
+ASC 86F8:8708 // UFWIEDERSEN
+
+ASC 5E49:5E55 // Bug in speech 1 name?? 5E54: $17D8 should be A0 A0
+dw 5E56:5E57
+dw 5E58:5E59
+ASC 6075:6081
+dw 6082:6083
+dw 6084:6085
+ASC 6B8E:6B9A
+ASC 703A:7046
+ASC 7581:758D
+ASC 7817:7823
+ASC 7B8A:7B96
+ASC 81AF:81BB
+ASC 848D:8499
+ASC 8709:8715
